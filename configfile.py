@@ -112,6 +112,8 @@ if ($cf->load()) {
 
     $sub_scopes = $cf->enumerateScope("sql.maria.auth"); # returns array of ['server','user','pw','db']
 """
+import os
+import re
 from collections import Mapping
 
 
@@ -171,9 +173,9 @@ class ConfigFile:
         """
         Change the string used as a delimiter between scopes.
         WARNING: Change this at your own risk. Setting unusual values here may break parsing.
-        :param scope_delimilte string The string to indicate the delimiter between scopes
+        :param scope_delimiter string The string to indicate the delimiter between scopes
         """
-        self.scope_delimilter = scope_delimiter
+        self.scope_delimiter = scope_delimiter
 
     def _override_quote_character(self, quote_char):
         """
@@ -229,3 +231,121 @@ class ConfigFile:
         self.loaded = False
         self.errors = []
         self.values = {}
+
+    def load(self):
+        """
+        Attempt to open and parse the config file.
+        :returns boolean True if the file loaded without errors, false otherwise
+        """
+        # If we've successfully loaded this file before, skip the load and return success
+        if self.loaded == True:
+            return True
+
+        # If file is null, then this is a scope query result, do nothing
+        if self.file_path is None:
+            self.errors.append("Cannot load file; no file was given. (Note: you cannot load() a query result.)")
+            return False
+
+        if os.is_file(self.file_path) and os.access(self.file_path, os.R_OK):
+            self.errors.append("Cannot load file; file does not exist or is not readable.")
+            return False
+
+        lines = []
+        try:
+            with open(self.file_path) as cfile:
+                lines = cfile.readlines()
+        except OSError:
+            self.errors.append("Cannot load file; unknown file error.")
+        lines = [line.rstrip('\r\n') for line in lines]
+
+        # Process lines
+        for line_num, line in enumerate(lines):
+            self.process_line(line_num, line)
+
+        # If parsing lines generated errors, return false
+        if len(self.errors) > 0:
+            return False
+
+        # Make it past all error conditions, so return true
+        self.loaded = True
+        return True
+
+    def find_line_comment_position(self, line, search_offset=0):
+        """
+        Find the position of the first line comment (ignoring all other rules)
+        :param line string The line to search over
+        :param search_offset int Offset from start of line in characters to skip before searching
+        :returns int|false The position of line comment start, or false if no line comment was found
+        """
+        start = False
+        for comment_start in self.line_comment_start:
+            start_check = line.find(comment_start, search_offset)
+            if start_check != -1 and (start == False or start_check < start):
+                start = start_check
+
+        return start
+
+    def find_assignment_delimiter_position(self, line):
+        """
+        Find the position of the first assignment delimiter (ignoring all other rules)
+        :param line string The line to search over
+        :returns int|false The position of the assignment delimiter, or false if no delimiter was found
+        """
+        pos = line.find(line, self.var_val_delimiter)
+        return pos if pos != -1 else False
+
+    def find_open_quote_position(self, line):
+        """
+        Find the position of the opening double quote character (ignoring all other rules)
+        :param line string The line to search over
+        :returns int|false The position of the double quote, or false is not found
+        """
+        pos = line.find(line, self.quote_char)
+        return pos if pos != -1 else False
+
+    def is_valid_scope_definition(self, line):
+        """
+        Given a line, check to see if it is a valid scope definition
+        :param line string The line to check
+        :return boolean Returns true if well formed and valid, false otherwise
+        """
+        valid_char_set = self.scope_char_set
+        scope_char = re.escape(self.scope_delimiter)
+        esc_comment_starts = ''
+        for comment_start as self.line_comment_start:
+            if esc_comment_starts != '':
+                esc_comment_starts += '|'
+            esc_comment_starts += re.escape(comment_start)
+        #                ------------- NAME CHARS -------- SCOPE CHAR --- NAME CHARS -------------------- ALLOW COMMENTS AFTER -----
+        scope_pattern = "^\s*\[\s*(?:[{0}]+(?:{1}[{0}]+)*)\s*\]\s*(?:({2}).*)?$".format(valid_char_set, scope_char, esc_comment_starts)
+
+        # default to not a scope
+        valid = False
+        # check for validity
+        patt = re.compile(scope_pattern)
+        if patt.search(line):
+            valid = True
+
+        return valid
+
+    def set_scope(self, line):
+        """
+        Set the current scope (assumes the line is a scope definition) while parsing the file. Does nothing if line is not a scope definition.
+        :param line string The line to get the scope from
+        """
+        valid_char_set = self.scope_char_set
+        scope_char = re.escape(self.scope_delimiter)
+        esc_comment_starts = ''
+        for comment_start in self.line_comment_start:
+            if esc_comment_starts != '':
+                esc_comment_starts += '|'
+            esc_comment_starts += re.escape(comment_start)
+        #                 ----------- NAME CHARS -------- SCOPE CHAR --- NAME CHARS -------------------- ALLOW COMMENTS AFTER -----
+        $sScopePattern = "^\s*\[\s*([{0}]+(?:{1}[{0}]+)*)\s*\]\s*(?:({2}).*)?$".format(valid_char_set, scope_char, esc_comment_starts)
+
+        # check for invalid characters
+        patt = re.compile(scope_pattern)
+        match = patt.search(line)
+        if match:
+            self.current_scope = match.group(1)
+

@@ -1,6 +1,6 @@
 """
+****************************************************************************************
 NOFUS Config File Parser for Python
-
 ****************************************************************************************
 Copyright 2014 Nathan Collins. All rights reserved.
 
@@ -316,8 +316,8 @@ class ConfigFile:
             if esc_comment_starts != '':
                 esc_comment_starts += '|'
             esc_comment_starts += re.escape(comment_start)
-        #                ------------- NAME CHARS -------- SCOPE CHAR --- NAME CHARS -------------------- ALLOW COMMENTS AFTER -----
-        scope_pattern = "^\s*\[\s*(?:[{0}]+(?:{1}[{0}]+)*)\s*\]\s*(?:({2}).*)?$".format(valid_char_set, scope_char, esc_comment_starts)
+
+        scope_pattern = "^\s*\[\s*(?:[{0}]+(?:{1}[{0}]+)*)?\s*\]\s*(?:({2}).*)?$".format(valid_char_set, scope_char, esc_comment_starts)
 
         # default to not a scope
         valid = False
@@ -340,12 +340,122 @@ class ConfigFile:
             if esc_comment_starts != '':
                 esc_comment_starts += '|'
             esc_comment_starts += re.escape(comment_start)
-        #                 ----------- NAME CHARS -------- SCOPE CHAR --- NAME CHARS -------------------- ALLOW COMMENTS AFTER -----
-        $sScopePattern = "^\s*\[\s*([{0}]+(?:{1}[{0}]+)*)\s*\]\s*(?:({2}).*)?$".format(valid_char_set, scope_char, esc_comment_starts)
+
+        scope_pattern = "^\s*\[\s*([{0}]+(?:{1}[{0}]+)*)?\s*\]\s*(?:({2}).*)?$".format(valid_char_set, scope_char, esc_comment_starts)
 
         # check for invalid characters
         patt = re.compile(scope_pattern)
         match = patt.search(line)
         if match:
             self.current_scope = match.group(1)
+
+    def has_value_delimiter(self, line):
+        """
+        Check if line has a value delimiter. Can only return true if the line
+        also has a valid variable name.
+        :param line string The line to check against
+        :returns boolean Returns true if line has a delimiter after a valid variable name
+        """
+        has_delim = False
+        if self.has_valid_variable_name(line):
+            esc_delim = re.escape(self.var_val_delimiter)
+            delim_pattern = re.compile('^[^{0}]+{0}'.format(esc_delim))
+            match = re.search(delim_pattern, line)
+            if match:
+                has_delim = True
+
+        return has_delim
+
+    def has_quoted_value(self, line, line_for_error=None):
+        """
+        Checks if the line has a valid quoted value.
+        :param line string $sLine The line to check
+        :param line_for_error int|none If a line number is provided, will add error messages if invalidly quoted
+        :return boolean Returns true if a quoted value exist, false otherwise
+        """
+        #################################################
+        # - Variable name must be valid
+        # - Assignment delimiter must exist after variable name (allowing for whitespace)
+        # - First character after assignment delimiter must be a quote (allowing for whitespace)
+        # - Assignment delimiter and open quote must not be in a comment
+        # - A matching quote character must exist to close the value
+        # - The closing quote has no other chars are after it (other than whitespace and comments)
+        #################################################
+        quoted_value = False
+        if self.has_valid_variable_name(line):
+            esc_delim = re.escape(self.var_val_delimiter)
+            esc_quote = re.escape(self.quote_char)
+            esc_escape = re.escape(self.escape_char)
+            esc_comment_starts = ""
+
+            for comment_start in self.line_comment_start:
+                if esc_comment_starts != '':
+                    esc_comment_starts += '|'
+                esc_comment_starts += re.escape(comment_start)
+
+            quote_val_patterns = re.compile("^[^{0}]+{0}\s*{1}(?:{2}{1}|[^{0}])*(?<!{2}){1}\s*(?:({3}).*)?$".format(esc_delim, esc_quote, esc_escape, esc_comment_starts))
+
+            match = quote_val_patterns.search(line)
+            if match:
+                quoted_value = True
+
+        return quoted_value
+
+    def get_quoted_value(self, line):
+        """
+        Returns the content from inside a properly quoted value string given a whole line.
+        The content from inside the string may still have escaped values.
+        :param line string The line to operate from
+        :return string The value between the openening and closed quote of the value (does NOT include open/closing quotes); on failure, returns empty string.
+        """
+        value = ""
+        if self.has_valid_variable_name(line):
+            esc_delim = re.escape(self.var_val_delimiter)
+            esc_quote = re.escape(self.quote_char)
+            esc_escape = re.escape(self.escape_char)
+            esc_comment_starts = ""
+
+            for comment_start in self.line_comment_start:
+                if esc_comment_starts != '':
+                    esc_comment_starts += '|'
+                esc_comment_starts += re.escape(comment_start)
+
+            quote_val_pattern = "^[^{0}]+{0}\s*{1}((?:{2}{1}|[^{1}])*)(?<!{2}){1}\s*(?:({3}).*)?$".format(esc_delim, esc_quote, esc_escape, esc_comment_starts)
+
+            match = quote_val_patterns.search(line)
+            if match:
+                value = match.group(1)
+
+        return value
+
+    def get_variable_value(self, line, line_for_error=None):
+        """
+        Get the processed value for the given line. Handles quotes, comments, and unescaping characters.
+        :param line string The line to operate from
+        :param line_for_error int|null If a line number is provided, will add error messages if invalidly quoted
+        :return string The value processed variable value
+        """
+        value = False
+        if self.has_valid_variable_name(line):
+            value = True
+            if self.has_value_delimiter(line):
+                value = ""
+                if self.has_quoted_value(line, line_for_error):
+                    # getting the quoted value will strip off comments automatically
+                    value = self.get_quoted_value
+                else:
+                    value = self.get_post_delimiter(line)
+                    # handle comments
+                    comment_start = self.find_line_comment_position(value)
+                    if comment_start != False:
+                        value = value[0:comment_start]
+                    value = value.strip()
+
+                # handle escaped chars
+                esc_escape = re.compile(self.escape_char)
+                unescape_pattern = re.compile("{0}(.)".format(esc_escape)
+                unescape_replace = "\\1"
+                value = re.sub(unescape_pattern, unescape_replace, value)
+
+        return value
 

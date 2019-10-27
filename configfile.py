@@ -146,7 +146,7 @@ class ConfigFile:
 
         # Parse file_to_open
         if file_to_open is not None and isinstance(file_to_open, str):
-            file_path = file_to_open
+            self.file_path = file_to_open
 
     def _override_comment_starts(self, line_comment_start):
         """
@@ -221,7 +221,7 @@ class ConfigFile:
             if not name in self.values:
                 if isinstance(value, (list, Mapping)):
                     self.values[name] = value
-                else
+                else:
                     self.values[name] = [value]
 
     def reset(self):
@@ -246,7 +246,7 @@ class ConfigFile:
             self.errors.append("Cannot load file; no file was given. (Note: you cannot load() a query result.)")
             return False
 
-        if os.is_file(self.file_path) and os.access(self.file_path, os.R_OK):
+        if not os.path.isfile(self.file_path) or not os.access(self.file_path, os.R_OK):
             self.errors.append("Cannot load file; file does not exist or is not readable.")
             return False
 
@@ -260,7 +260,7 @@ class ConfigFile:
 
         # Process lines
         for line_num, line in enumerate(lines):
-            self.process_line(line_num, line)
+            self._process_line(line_num, line)
 
         # If parsing lines generated errors, return false
         if len(self.errors) > 0:
@@ -270,7 +270,7 @@ class ConfigFile:
         self.loaded = True
         return True
 
-    def find_line_comment_position(self, line, search_offset=0):
+    def _find_line_comment_position(self, line, search_offset=0):
         """
         Find the position of the first line comment (ignoring all other rules)
         :param line string The line to search over
@@ -285,7 +285,7 @@ class ConfigFile:
 
         return start
 
-    def find_assignment_delimiter_position(self, line):
+    def _find_assignment_delimiter_position(self, line):
         """
         Find the position of the first assignment delimiter (ignoring all other rules)
         :param line string The line to search over
@@ -294,7 +294,7 @@ class ConfigFile:
         pos = line.find(line, self.var_val_delimiter)
         return pos if pos != -1 else False
 
-    def find_open_quote_position(self, line):
+    def _find_open_quote_position(self, line):
         """
         Find the position of the opening double quote character (ignoring all other rules)
         :param line string The line to search over
@@ -303,7 +303,7 @@ class ConfigFile:
         pos = line.find(line, self.quote_char)
         return pos if pos != -1 else False
 
-    def is_valid_scope_definition(self, line):
+    def _is_valid_scope_definition(self, line):
         """
         Given a line, check to see if it is a valid scope definition
         :param line string The line to check
@@ -312,7 +312,7 @@ class ConfigFile:
         valid_char_set = self.scope_char_set
         scope_char = re.escape(self.scope_delimiter)
         esc_comment_starts = ''
-        for comment_start as self.line_comment_start:
+        for comment_start in self.line_comment_start:
             if esc_comment_starts != '':
                 esc_comment_starts += '|'
             esc_comment_starts += re.escape(comment_start)
@@ -328,7 +328,7 @@ class ConfigFile:
 
         return valid
 
-    def set_scope(self, line):
+    def _set_scope(self, line):
         """
         Set the current scope (assumes the line is a scope definition) while parsing the file. Does nothing if line is not a scope definition.
         :param line string The line to get the scope from
@@ -349,7 +349,7 @@ class ConfigFile:
         if match:
             self.current_scope = match.group(1)
 
-    def has_value_delimiter(self, line):
+    def _has_value_delimiter(self, line):
         """
         Check if line has a value delimiter. Can only return true if the line
         also has a valid variable name.
@@ -357,7 +357,7 @@ class ConfigFile:
         :returns boolean Returns true if line has a delimiter after a valid variable name
         """
         has_delim = False
-        if self.has_valid_variable_name(line):
+        if self._has_valid_variable_name(line):
             esc_delim = re.escape(self.var_val_delimiter)
             delim_pattern = re.compile('^[^{0}]+{0}'.format(esc_delim))
             match = re.search(delim_pattern, line)
@@ -366,7 +366,7 @@ class ConfigFile:
 
         return has_delim
 
-    def has_quoted_value(self, line, line_for_error=None):
+    def _has_quoted_value(self, line, line_for_error=None):
         """
         Checks if the line has a valid quoted value.
         :param line string $sLine The line to check
@@ -382,7 +382,7 @@ class ConfigFile:
         # - The closing quote has no other chars are after it (other than whitespace and comments)
         #################################################
         quoted_value = False
-        if self.has_valid_variable_name(line):
+        if self._has_valid_variable_name(line):
             esc_delim = re.escape(self.var_val_delimiter)
             esc_quote = re.escape(self.quote_char)
             esc_escape = re.escape(self.escape_char)
@@ -401,7 +401,7 @@ class ConfigFile:
 
         return quoted_value
 
-    def get_quoted_value(self, line):
+    def _get_quoted_value(self, line):
         """
         Returns the content from inside a properly quoted value string given a whole line.
         The content from inside the string may still have escaped values.
@@ -409,7 +409,7 @@ class ConfigFile:
         :return string The value between the openening and closed quote of the value (does NOT include open/closing quotes); on failure, returns empty string.
         """
         value = ""
-        if self.has_valid_variable_name(line):
+        if self._has_valid_variable_name(line):
             esc_delim = re.escape(self.var_val_delimiter)
             esc_quote = re.escape(self.quote_char)
             esc_escape = re.escape(self.escape_char)
@@ -428,7 +428,7 @@ class ConfigFile:
 
         return value
 
-    def get_variable_value(self, line, line_for_error=None):
+    def _get_variable_value(self, line, line_for_error=None):
         """
         Get the processed value for the given line. Handles quotes, comments, and unescaping characters.
         :param line string The line to operate from
@@ -436,26 +436,209 @@ class ConfigFile:
         :return string The value processed variable value
         """
         value = False
-        if self.has_valid_variable_name(line):
+        if self._has_valid_variable_name(line):
             value = True
-            if self.has_value_delimiter(line):
+            if self._has_value_delimiter(line):
                 value = ""
-                if self.has_quoted_value(line, line_for_error):
+                if self._has_quoted_value(line, line_for_error):
                     # getting the quoted value will strip off comments automatically
-                    value = self.get_quoted_value
+                    value = self._get_quoted_value
                 else:
-                    value = self.get_post_delimiter(line)
+                    value = self._get_post_delimiter(line)
                     # handle comments
-                    comment_start = self.find_line_comment_position(value)
+                    comment_start = self._find_line_comment_position(value)
                     if comment_start != False:
                         value = value[0:comment_start]
                     value = value.strip()
 
                 # handle escaped chars
                 esc_escape = re.compile(self.escape_char)
-                unescape_pattern = re.compile("{0}(.)".format(esc_escape)
+                unescape_pattern = re.compile("{0}(.)".format(esc_escape))
                 unescape_replace = "\\1"
                 value = re.sub(unescape_pattern, unescape_replace, value)
 
         return value
 
+    def _get_pre_delimiter(self, line):
+        """
+        Returns the trimmed string before any delimiter on a line.
+         - Removes comments from line
+         - If no delimiter is present, returns the whole line (minus any comment)
+        :param line string The line to operate from
+        :return string The value before any delimiter
+        """
+        assign_delim_pos = self._find_assignment_delimiter_position(line)
+        line_comment_pos = self._find_line_comment_position(line)
+
+        # if comment starts before the delimiter, then the delimiter is commented out; ignore it
+        if line_comment_pos != False and (assign_delim_pos == False or line_comment_pos < assign_delim_pos):
+            line = line[0:line_comment_pos]
+
+        # if the delimiter exists (non-commented)
+        if assign_delim_pos != False:
+            line = line[0:assign_delim_pos]
+
+        line = line.strip()
+        return line
+
+    def _get_post_delimiter(self, line):
+        """
+        Returns the trimmed string after any delimiter on a line.
+         - If no delimiter is present (or if delimiter is commented out) returns empty string
+         - Does NOT remove comments from post delimiter content
+        :param line string The line to operate from
+        :return string The value after any delimiter
+        """
+        assign_delim_pos = self._find_assignment_delimiter_position(line)
+        line_comment_pos = self._find_line_comment_position(line)
+
+        # if comment starts before the delimiter, then the delimiter is commented out; no post delim content
+        if assign_delim_pos != False:
+            line = line[1+assign_delim_pos:]
+
+        line = line.strip()
+        return line
+
+    def _has_valid_variable_name(self, line, line_for_error=None):
+        """
+        Checks if the line has a variable name and that it's valid
+        :param line string The line to check
+        :param line_for_error int|null If provided, will add an error on invalid variable name characters
+        :return boolean Returns true if variable name exists and is valid, false otherwise
+        """
+        valid_char_set = self.varname_char_set
+        scope_char = re.escape(self.scope_delimiter)
+        var_name_pattern = re.compile("^\s*(?:[{0}]+(?:{1}[{0}]+)*)\s*$".format(valid_char_set, scope_char))
+        var_name_check = self._get_pre_delimiter(line)
+
+        # default to not a valid name
+        valid = False
+        # check for invalid characters
+        match = var_name_pattern.search(var_name_check)
+        if match and len(match) == 1:
+            valid = True
+        # don't error for empty line
+        elif var_name_check != "" and line_for_error is not None:
+            self._add_error(line_for_error, "Invalid variable name.")
+
+        return valid
+
+    def _get_variable_name(self, line, line_for_error=None):
+        """
+        Gets a valid variable name for a line, or false if no valid variable name exists.
+        :param line string The line to check
+        :param line_for_error int|null If provided, will add an error on invalid variable name characters
+        :return string|false The variable name, or false if no valid variable name existed
+        """
+        valid_var = False
+        if self._has_valid_variable_name(line, line_for_error):
+            valid_var = self._get_pre_delimiter(line)
+
+        return valid_var
+
+    def _process_line(self, line_num, line):
+        """
+        Process a line into the store values array.
+        :param line_num int The line number processing (for use in error reporting)
+        :param line string The full line from the file to process
+        """
+        if self._is_valid_scope_definition(line):
+            self._set_scope(line)
+        else:
+            var_name = self._get_variable_name(line, line_num)
+            if var_name is not None:
+                adjusted_name = self.current_scope + ("" if self.current_scope == "" else self.scope_delimiter) + var_name
+                # initialize variable name array if doesn't exist
+                if adjusted_name not in self.values:
+                    self.values[adjusted_name] = []
+                self.values[adjusted_name].append(self._get_variable_value(line, line_num))
+
+    def _add_error(line, message):
+        """
+        Store an error for retrieval with errors() function.
+        :param line int The line on which the error occured (0 based count)
+        :param message string The error message associated with the line
+        """
+        line += 1   # due to base 0 line indexing
+        self.errors.append("ConfigFile parse error on line {0}: {1}".format(line, message))
+
+    def errors(self):
+        """
+        Get a list of errors when attempting to load() the file
+        :return array And array of errors; can be empty if no errors were encountered or the file has not been loaded yet
+        """
+        return self.errors
+
+    def get(self, query, default=None):
+        """
+        Query the config for a scope/variable. Returns the first value or scope on success,
+        or 'default' (default: none) if the query was not found.
+        :param query string The query string. e.g. "variable", "scope", "scope.variable", etc
+        :param default mixed The return value should the query not find anything.
+        :return string|ConfigFile|null The matching value from the query, or mDefault if not found
+        """
+        val = default
+        # try to get value match first
+        if query in self.values and len(self.values[query]) > 0:
+            val = self.values[query][0]
+        else:
+            # check if this matches any scopes
+            scope_char = re.escape(self.scope_delimiter)
+            query_str = re.escape(query)
+            # must match a scope exactly ( "my.scope" should not match "my.scopeless" )
+            scope_pattern = re.compile("^{0}{1}(.+)$".format(query_str, scope_char))
+
+            scope_matches = {}
+            for name, value in self.values.items():
+                match = scope_pattern.search(name)
+                if match and len(match) == 1:
+                    scope_matches[match.group(1)] = value
+
+            if len(scope_matches) > 0:
+                val = ConfigFile()
+                val.preload(scope_matches)
+
+        return val
+
+
+    def getArray(self, query):
+        """
+        Query the config for a variable. Returns all values for the given query as an array.
+        If no value for the query exists, returns an empty array.
+        :param query string The query string. e.g. "variable", "scope.variable", etc
+        :return array And array containing all matching values from the query, or empty array if not found
+        """
+        val = {}
+        if query in self.values:
+            val = self.values[query]
+        return val
+
+    def getAll(self):
+        """
+        Get all name/value pairs that have been parsed from the file.
+        :return array An associative array containing name=>value pairs will full scope names.
+        """
+        return self.values
+
+    def enumerateScope(self, query=""):
+        """
+        Query to return all avaialble scopes/variables for a given scope level. An empty
+        string (the default) will return top level scopes/variables.
+        :param query string A scope level to match, or empty string to query for top level scopes
+        :return array An array of available scopes/variables for the given scope level
+        """
+        scope_values = []
+        all_scopes = self.values.keys()
+        if query != "":
+            query += "."
+        for scope in all_scopes:
+            if query == "" or scope.find(query) == 0:
+                sub_scope = scope[len(query)]
+                scope_end = sub_scope.find(".")
+                val = sub_scope[0:]
+                # Grab only the next level of scope
+                if scope_end != False:
+                    val = sub_scope[0:scope_end]
+                scope_values.append(val)
+
+        return list(set(scope_values))

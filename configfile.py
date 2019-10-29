@@ -127,13 +127,13 @@ class ConfigFile:
         self.loaded = False
 
         # Static parse values
-        self.line_comment_start = ['#', '//']
-        self.var_val_delimiter = '='
-        self.scope_delimiter = '.'
-        self.quote_char = '\"'
-        self.escape_char = '\\'
-        self.scope_char_set = "a-zA-Z0-9_\-"
-        self.varname_char_set = "a-zA-Z0-9_\-"
+        self.line_comment_start = [r'#', r'//']
+        self.var_val_delimiter = r'='
+        self.scope_delimiter = r'.'
+        self.quote_char = r'"'
+        self.escape_char = r'\\'
+        self.scope_char_set = r"a-zA-Z0-9_\-"
+        self.varname_char_set = r"a-zA-Z0-9_\-"
 
         # Dynamic parse values
         self.current_scope = ""
@@ -291,7 +291,7 @@ class ConfigFile:
         :param line string The line to search over
         :returns int|false The position of the assignment delimiter, or false if no delimiter was found
         """
-        pos = line.find(line, self.var_val_delimiter)
+        pos = line.find(self.var_val_delimiter)
         return pos if pos != -1 else False
 
     def _find_open_quote_position(self, line):
@@ -346,7 +346,7 @@ class ConfigFile:
         # check for invalid characters
         patt = re.compile(scope_pattern)
         match = patt.search(line)
-        if match:
+        if match and len(match.groups()) == 1:
             self.current_scope = match.group(1)
 
     def _has_value_delimiter(self, line):
@@ -396,7 +396,7 @@ class ConfigFile:
             quote_val_patterns = re.compile("^[^{0}]+{0}\s*{1}(?:{2}{1}|[^{0}])*(?<!{2}){1}\s*(?:({3}).*)?$".format(esc_delim, esc_quote, esc_escape, esc_comment_starts))
 
             match = quote_val_patterns.search(line)
-            if match:
+            if match and len(match.groups()) == 1:
                 quoted_value = True
 
         return quoted_value
@@ -420,10 +420,10 @@ class ConfigFile:
                     esc_comment_starts += '|'
                 esc_comment_starts += re.escape(comment_start)
 
-            quote_val_pattern = "^[^{0}]+{0}\s*{1}((?:{2}{1}|[^{1}])*)(?<!{2}){1}\s*(?:({3}).*)?$".format(esc_delim, esc_quote, esc_escape, esc_comment_starts)
+            quote_val_patterns = re.compile("^[^{0}]+{0}\s*{1}((?:{2}{1}|[^{1}])*)(?<!{2}){1}\s*(?:({3}).*)?$".format(esc_delim, esc_quote, esc_escape, esc_comment_starts))
 
             match = quote_val_patterns.search(line)
-            if match:
+            if match and len(match.groups()) == 1:
                 value = match.group(1)
 
         return value
@@ -442,19 +442,19 @@ class ConfigFile:
                 value = ""
                 if self._has_quoted_value(line, line_for_error):
                     # getting the quoted value will strip off comments automatically
-                    value = self._get_quoted_value
+                    value = self._get_quoted_value(line)
                 else:
                     value = self._get_post_delimiter(line)
                     # handle comments
                     comment_start = self._find_line_comment_position(value)
-                    if comment_start != False:
+                    if comment_start is not False:
                         value = value[0:comment_start]
                     value = value.strip()
 
                 # handle escaped chars
                 esc_escape = re.compile(self.escape_char)
-                unescape_pattern = re.compile("{0}(.)".format(esc_escape))
-                unescape_replace = "\\1"
+                unescape_pattern = "{0}(.)".format(esc_escape)
+                unescape_replace = r'\1'
                 value = re.sub(unescape_pattern, unescape_replace, value)
 
         return value
@@ -471,15 +471,14 @@ class ConfigFile:
         line_comment_pos = self._find_line_comment_position(line)
 
         # if comment starts before the delimiter, then the delimiter is commented out; ignore it
-        if line_comment_pos != False and (assign_delim_pos == False or line_comment_pos < assign_delim_pos):
+        if line_comment_pos is not False and (assign_delim_pos is False or line_comment_pos < assign_delim_pos):
             line = line[0:line_comment_pos]
 
         # if the delimiter exists (non-commented)
-        if assign_delim_pos != False:
+        if assign_delim_pos is not False:
             line = line[0:assign_delim_pos]
 
-        line = line.strip()
-        return line
+        return line.strip()
 
     def _get_post_delimiter(self, line):
         """
@@ -493,7 +492,7 @@ class ConfigFile:
         line_comment_pos = self._find_line_comment_position(line)
 
         # if comment starts before the delimiter, then the delimiter is commented out; no post delim content
-        if assign_delim_pos != False:
+        if assign_delim_pos is not False:
             line = line[1+assign_delim_pos:]
 
         line = line.strip()
@@ -515,7 +514,7 @@ class ConfigFile:
         valid = False
         # check for invalid characters
         match = var_name_pattern.search(var_name_check)
-        if match and len(match) == 1:
+        if match:
             valid = True
         # don't error for empty line
         elif var_name_check != "" and line_for_error is not None:
@@ -546,14 +545,14 @@ class ConfigFile:
             self._set_scope(line)
         else:
             var_name = self._get_variable_name(line, line_num)
-            if var_name is not None:
+            if var_name is not False:
                 adjusted_name = self.current_scope + ("" if self.current_scope == "" else self.scope_delimiter) + var_name
                 # initialize variable name array if doesn't exist
                 if adjusted_name not in self.values:
                     self.values[adjusted_name] = []
                 self.values[adjusted_name].append(self._get_variable_value(line, line_num))
 
-    def _add_error(line, message):
+    def _add_error(self, line, message):
         """
         Store an error for retrieval with errors() function.
         :param line int The line on which the error occured (0 based count)
@@ -591,7 +590,7 @@ class ConfigFile:
             scope_matches = {}
             for name, value in self.values.items():
                 match = scope_pattern.search(name)
-                if match and len(match) == 1:
+                if match and len(match.groups()) == 1:
                     scope_matches[match.group(1)] = value
 
             if len(scope_matches) > 0:
@@ -601,7 +600,7 @@ class ConfigFile:
         return val
 
 
-    def getArray(self, query):
+    def get_array(self, query):
         """
         Query the config for a variable. Returns all values for the given query as an array.
         If no value for the query exists, returns an empty array.
@@ -613,14 +612,14 @@ class ConfigFile:
             val = self.values[query]
         return val
 
-    def getAll(self):
+    def get_all(self):
         """
         Get all name/value pairs that have been parsed from the file.
         :return array An associative array containing name=>value pairs will full scope names.
         """
         return self.values
 
-    def enumerateScope(self, query=""):
+    def enumerate_scope(self, query=""):
         """
         Query to return all avaialble scopes/variables for a given scope level. An empty
         string (the default) will return top level scopes/variables.

@@ -121,17 +121,17 @@ class ConfigFile:
     """
     The main ConfigFile class
     """
-    def __init__(self, file_to_open):
+    def __init__(self, file_to_open=None):
         # File Info
         self.file_path = None
         self.loaded = False
 
         # Static parse values
         self.line_comment_start = [r'#', r'//']
-        self.var_val_delimiter = r'='
-        self.scope_delimiter = r'.'
-        self.quote_char = r'"'
-        self.escape_char = r'\\'
+        self.var_val_delimiter = '='
+        self.scope_delimiter = '.'
+        self.quote_char = '"'
+        self.escape_char = "[\\\\]"
         self.scope_char_set = r"a-zA-Z0-9_\-"
         self.varname_char_set = r"a-zA-Z0-9_\-"
 
@@ -191,7 +191,7 @@ class ConfigFile:
         WARNING: Change this at your own risk. Setting unusual values here may break parsing.
         :param escape_char string The character to indicate an excaped character follows
         """
-        self.escape_char = escape_char
+        self.escape_char = "[{0}]".format(escape_char)
 
     def _override_scope_characters(self, scope_char_set):
         """
@@ -346,8 +346,8 @@ class ConfigFile:
         # check for invalid characters
         patt = re.compile(scope_pattern)
         match = patt.search(line)
-        if match and len(match.groups()) == 1:
-            self.current_scope = match.group(1)
+        if match and len(match.groups()) == 2:
+            self.current_scope = "" if match.group(1) is None else match.group(1)
 
     def _has_value_delimiter(self, line):
         """
@@ -385,7 +385,7 @@ class ConfigFile:
         if self._has_valid_variable_name(line):
             esc_delim = re.escape(self.var_val_delimiter)
             esc_quote = re.escape(self.quote_char)
-            esc_escape = re.escape(self.escape_char)
+            esc_escape = self.escape_char
             esc_comment_starts = ""
 
             for comment_start in self.line_comment_start:
@@ -393,7 +393,7 @@ class ConfigFile:
                     esc_comment_starts += '|'
                 esc_comment_starts += re.escape(comment_start)
 
-            quote_val_patterns = re.compile("^[^{0}]+{0}\s*{1}(?:{2}{1}|[^{0}])*(?<!{2}){1}\s*(?:({3}).*)?$".format(esc_delim, esc_quote, esc_escape, esc_comment_starts))
+            quote_val_patterns = re.compile("^[^{0}]+{0}\s*{1}(?:{2}{1}|[^{1}])*(?<!{2}){1}\s*(?:({3}).*)?$".format(esc_delim, esc_quote, esc_escape, esc_comment_starts))
 
             match = quote_val_patterns.search(line)
             if match and len(match.groups()) == 1:
@@ -412,7 +412,7 @@ class ConfigFile:
         if self._has_valid_variable_name(line):
             esc_delim = re.escape(self.var_val_delimiter)
             esc_quote = re.escape(self.quote_char)
-            esc_escape = re.escape(self.escape_char)
+            esc_escape = self.escape_char
             esc_comment_starts = ""
 
             for comment_start in self.line_comment_start:
@@ -423,7 +423,7 @@ class ConfigFile:
             quote_val_patterns = re.compile("^[^{0}]+{0}\s*{1}((?:{2}{1}|[^{1}])*)(?<!{2}){1}\s*(?:({3}).*)?$".format(esc_delim, esc_quote, esc_escape, esc_comment_starts))
 
             match = quote_val_patterns.search(line)
-            if match and len(match.groups()) == 1:
+            if match and len(match.groups()) == 2:
                 value = match.group(1)
 
         return value
@@ -452,8 +452,7 @@ class ConfigFile:
                     value = value.strip()
 
                 # handle escaped chars
-                esc_escape = re.compile(self.escape_char)
-                unescape_pattern = "{0}(.)".format(esc_escape)
+                unescape_pattern = "{0}(.)".format(self.escape_char)
                 unescape_replace = r'\1'
                 value = re.sub(unescape_pattern, unescape_replace, value)
 
@@ -605,9 +604,9 @@ class ConfigFile:
         Query the config for a variable. Returns all values for the given query as an array.
         If no value for the query exists, returns an empty array.
         :param query string The query string. e.g. "variable", "scope.variable", etc
-        :return array And array containing all matching values from the query, or empty array if not found
+        :return list And array containing all matching values from the query, or empty list if not found
         """
-        val = {}
+        val = []
         if query in self.values:
             val = self.values[query]
         return val
@@ -632,12 +631,13 @@ class ConfigFile:
             query += "."
         for scope in all_scopes:
             if query == "" or scope.find(query) == 0:
-                sub_scope = scope[len(query)]
+                sub_scope = scope[len(query):]
                 scope_end = sub_scope.find(".")
                 val = sub_scope[0:]
                 # Grab only the next level of scope
-                if scope_end != False:
+                if scope_end != -1:
                     val = sub_scope[0:scope_end]
                 scope_values.append(val)
 
         return list(set(scope_values))
+

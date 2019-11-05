@@ -2,7 +2,7 @@
 ****************************************************************************************
 NOFUS Config File Parser for Python
 ****************************************************************************************
-Copyright 2014 Nathan Collins. All rights reserved.
+Copyright 2019 Nathan Collins. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are
 permitted provided that the following conditions are met:
@@ -599,12 +599,12 @@ class ConfigFile:
         return val
 
 
-    def get_array(self, query):
+    def get_list(self, query):
         """
-        Query the config for a variable. Returns all values for the given query as an array.
-        If no value for the query exists, returns an empty array.
+        Query the config for a variable. Returns all values for the given query as a list.
+        If no value for the query exists, returns an empty list.
         :param query string The query string. e.g. "variable", "scope.variable", etc
-        :return list And array containing all matching values from the query, or empty list if not found
+        :return list A list containing all matching values from the query, or empty list if not found
         """
         val = []
         if query in self.values:

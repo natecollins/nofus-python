@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
+import sys
 import unittest
 import os
+TOP_PATH = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+sys.path.append(TOP_PATH)
 from configfile import ConfigFile
 
 class ConfigFileTestCase(unittest.TestCase):
     def setUp(self):
-        self.test1_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "test1.conf")
+        self.test1_file = os.path.join(TOP_PATH, "tests", "test1.conf")
 
     def test_can_load_file(self):
         cf = ConfigFile(self.test1_file)
@@ -23,7 +26,7 @@ class ConfigFileTestCase(unittest.TestCase):
         self.assertIsNone(cf.get('badvar2'))
         self.assertEqual(       'default val',                              cf.get('invalid.var', 'default val'))
         self.assertEqual(       '42',                                       cf.get('var1'))
-        self.assertEqual(       ['92'],                                     cf.get_array('var2'))
+        self.assertEqual(       ['92'],                                     cf.get_list('var2'))
         self.assertEqual(       '92',                                       cf.get('var2'))
         self.assertEqual(       'a string',                                 cf.get('var_3'))
         self.assertEqual(       'quoted string',                            cf.get('VAR-4'))
@@ -39,7 +42,7 @@ class ConfigFileTestCase(unittest.TestCase):
         self.assertEqual(       '',                                         cf.get('var11'))
         self.assertTrue(         cf.get('var12'))
         self.assertEqual(       'abc',                                      cf.get('multi-var13'))
-        self.assertEqual(       ['abc','pqr','xyz'],                        cf.get_array('multi-var13'))
+        self.assertEqual(       ['abc','pqr','xyz'],                        cf.get_list('multi-var13'))
         self.assertEqual(       'non quoted start with "quoted end"',       cf.get('var14'))
         self.assertEqual(       '2',                                        cf.get('marbles.green'))
         self.assertEqual(       '6',                                        cf.get('marbles.white'))
@@ -61,8 +64,8 @@ class ConfigFileTestCase(unittest.TestCase):
         self.assertEqual(       'white space before var',                   cf.get('var16'))
         self.assertIsNone(      cf.get('same'))
 
-        self.assertIsInstance(  cf.get_array('invalid.name'),                list)
-        self.assertCountEqual(  cf.get_array('invalid.name'),                [])
+        self.assertIsInstance(  cf.get_list('invalid.name'),                list)
+        self.assertCountEqual(  cf.get_list('invalid.name'),                [])
 
 
 if __name__ == '__main__':

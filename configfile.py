@@ -85,32 +85,30 @@ a..b = c                # scopes cannot be blank
  * Use examples
  **************************************
 
-$cf = new ConfigFile("test.conf");
-if ($cf->load()) {
+cf = ConfigFile("test.conf");
+if (cf.load()) {
     # can preload default values, even after loading
-    $cf->preload(
-        array(
-            "var1"=>12,
-            "name"=>"none",
-            "enable_keys"=>false,
-            "marbles.green"=>0
-        )
-    );
+    cf.preload( {
+            "var1": 12,
+            "name": "none",
+            "enable_keys": false,
+            "marbles.green": 0
+        } );
 
-    $v1 = $cf->get("var1");         # get value from var1, or null if doesn't exist
-    $v9 = $cf->get("var9", 123);    # get value from var9, or 123 if doesn't exist
+    v1 = cf.get("var1");         # get value from var1, or null if doesn't exist
+    v9 = cf.get("var9", 123);    # get value from var9, or 123 if doesn't exist
 
-    $arr = $cf->getArray("multi_valued");   # get all values for multi_valued as an array
+    arr = cf.get_list("multi_valued");   # get all values for multi_valued as an array
 
-    $mw = $cf->get("marbles.white", 1);     # get marbles.white, or 1 if doesn't exist
-    $pw = $cf->get("sql.maria.auth.pw");    # get sql.maria.auth.pw, or null if doesn't exist
+    mw = cf.get("marbles.white", 1);     # get marbles.white, or 1 if doesn't exist
+    pw = cf.get("sql.maria.auth.pw");    # get sql.maria.auth.pw, or null if doesn't exist
 
-    $sql = $cf->get('sql.maria');           # get a scope
-    $svr = $sql->get('auth.server');        # get auth.server (from sql.maria scope), or null if doesn't exist
+    sql = cf.get('sql.maria');           # get a scope
+    svr = sql.get('auth.server');        # get auth.server (from sql.maria scope), or null if doesn't exist
 
-    $bad = $cf->get('does.not.exist');      # attempt to get a non-existant scope, returns null
+    bad = cf.get('does.not.exist');      # attempt to get a non-existant scope, returns null
 
-    $sub_scopes = $cf->enumerateScope("sql.maria.auth"); # returns array of ['server','user','pw','db']
+    sub_scopes = cf.enumerate_scope("sql.maria.auth"); # returns array of ['server','user','pw','db']
 """
 import os
 import re
@@ -140,6 +138,9 @@ class ConfigFile:
 
         # Errors
         self.errors = []
+
+        # Keys with preloaded values
+        self.preloaded = {}
 
         # Parsed Content
         self.values = {}
@@ -219,6 +220,7 @@ class ConfigFile:
         """
         for name, value in defaults.items():
             if not name in self.values:
+                self.preloaded[name] = True
                 if isinstance(value, (list, Mapping)):
                     self.values[name] = value
                 else:
@@ -546,9 +548,11 @@ class ConfigFile:
             var_name = self._get_variable_name(line, line_num)
             if var_name is not False:
                 adjusted_name = self.current_scope + ("" if self.current_scope == "" else self.scope_delimiter) + var_name
-                # initialize variable name array if doesn't exist
-                if adjusted_name not in self.values:
+                # initialize variable name array if doesn't exist (or if it was a preloaded value)
+                if adjusted_name not in self.values or adjusted_name in self.preloaded.keys():
                     self.values[adjusted_name] = []
+                    if adjusted_name in self.preloaded.keys():
+                        del self.preloaded[adjusted_name]
                 self.values[adjusted_name].append(self._get_variable_value(line, line_num))
 
     def _add_error(self, line, message):

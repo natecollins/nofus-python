@@ -21,7 +21,9 @@ class ConfigFileTestCase(unittest.TestCase):
 
     def test_can_parse_all_values(self):
         cf = ConfigFile(self.test1_file)
+        cf.preload( { "non-var": "doesn't exist", "var1": "get's overridden" } )
         cf.load()
+        self.assertEqual(       "doesn't exist",                            cf.get("non-var"))
         self.assertIsNone(cf.get('badvar1'))
         self.assertIsNone(cf.get('badvar2'))
         self.assertEqual(       'default val',                              cf.get('invalid.var', 'default val'))

@@ -1,7 +1,7 @@
 # NOFUS: Nate's One-File Utilities Stash
 ## About NOFUS
 A collection of single purpose classes for common tasks, focusing on simple and
-straightforward use. Each class can be taken and used individually and require
+straightforward use. Each class can be taken and used individually and requires
 no external dependencies.  
 
 ## Uses

@@ -5,8 +5,10 @@ straightforward use. Each class can be taken and used individually and requires
 no external dependencies.  
 
 ## Uses
+* [ConfigFile: No Hassle Config File Parser](#configfile-no-hassle-config-file-parser)
+* [Logger: Simplified Alternate Logging Interface](#logger-simplified-alternate-logging-interface)
 
-### ConfigFile : No Hassle Config File Parser
+### ConfigFile: No Hassle Config File Parser
 Example Config:  
 ```
 [email]
@@ -41,6 +43,44 @@ else:
     sql_pw      = sqlauth.get("pw")
 
     ldap_uris   = conf.get_list("auth.ldap.uri")
+```
+
+### Logger: Simplified Alternate Logging Interface
+Example Use:  
+```
+from logger import Logger
+
+# Fast setup, default to logging LOG_DEBUG and higher
+Logger.initialize('/tmp/myfile.log')
+Logger.info("Info!")
+Logger.notice("Notice!")
+Logger.warning("Warning!")
+Logger.error("Error!")
+Logger.critical("Critical!")
+
+# Disable logging
+Logger.disable()
+
+# Set log level
+Logger.initialize('/tmp/myfile.log', Logger.LOG_TRACE)
+Logger.trace("Trace!")
+
+# Check log level
+if Logger.is_enabled(Logger.LOG_DEBUG):
+    Logger.debug("Debug!")
+
+# Or Define a custom logger
+from logger import LoggingInterface
+class CustomLogger(LoggingInterface):
+    def __init__(self, log_file=None, log_level=None):
+        if log_level is None:
+            log_level = Logger.LOG_LOW
+        # Customize your init
+
+    def make_log(self, entry, log_level):
+        # Customize your log actions
+
+Logger.register(CustomLogger())
 ```
 
 ## Installation

@@ -158,7 +158,7 @@ class ConfigFile:
                 An array containing strings which indicate the start of a comment
                 OR a string that indicates the start of a comment
         """
-        if type(line_comment_start) is not list and isinstance(line_comment_start, str):
+        if not isinstance(line_comment_start, list) and isinstance(line_comment_start, str):
             self.line_comment_start = [line_comment_start]
         self.line_comment_start = line_comment_start
 
@@ -240,7 +240,7 @@ class ConfigFile:
         :returns boolean True if the file loaded without errors, false otherwise
         """
         # If we've successfully loaded this file before, skip the load and return success
-        if self.loaded == True:
+        if self.loaded is True:
             return True
 
         # If file is null, then this is a scope query result, do nothing
@@ -282,7 +282,7 @@ class ConfigFile:
         start = False
         for comment_start in self.line_comment_start:
             start_check = line.find(comment_start, search_offset)
-            if start_check != -1 and (start == False or start_check < start):
+            if start_check != -1 and (start is False or start_check < start):
                 start = start_check
 
         return start

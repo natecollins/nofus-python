@@ -59,8 +59,8 @@ Logger.error("Error!")
 Logger.critical("Critical!")
 """
 import os
-import logging
 import time
+import threading
 
 class LoggingInterface:
     """
@@ -89,14 +89,15 @@ class Logger(LoggingInterface):
     LOG_ALL       = 0xFFFFFFFF
 
     # Instance of class implementing LoggingInterface
-    logger = None;
+    logger = None
+    # Threading lock
+    nofus_lock = threading.Lock()
 
     def __init__(self, log_file=None, log_level=None):
         if log_level is None:
             log_level = Logger.LOG_HIGH
         self.log_file = log_file
         self.log_level = log_level
-        logging.basicConfig(filename=self.log_file, level=logging.DEBUG, format='%(message)s')
 
     @staticmethod
     def register(logger):
@@ -104,14 +105,13 @@ class Logger(LoggingInterface):
         Register a custom logger instead of using the built-in one
         :param logger An instance of a class that implements LoggingInterface
         """
-        if not issubclass(logger, LoggingInterface):
+        if not issubclass(logger.__class__, LoggingInterface):
             raise TypeError("Logger failure. Can only register classes which implement LoggingInterface.")
         Logger.logger = logger
 
     @staticmethod
     def disable():
         Logger.logger = False
-
 
     @staticmethod
     def initialize(log_file, log_level=None):
@@ -144,11 +144,14 @@ class Logger(LoggingInterface):
             elif log_level == Logger.LOG_TRACE:
                 level = "TRACE"
 
-            entry = "[{0}] [{1}] {2}".format(timestamp, level, entry)
-            logging.critical(msg=entry) # logging to critical, actual log level is now handled by Logger
+            entry = "[{0}] [{1}] {2}".format(timestamp, level, entry) + os.linesep
+            Logger.nofus_lock.acquire()
+            with open(self.log_file, 'a+') as appendlog:
+                appendlog.write(entry)
+            Logger.nofus_lock.release()
 
     @staticmethod
-    def process_log(entry, log_level):
+    def _process_log(entry, log_level):
         if Logger.logger is None:
             raise RuntimeError("Logger failure. Logger not initialized.")
         elif Logger.logger is not False:
@@ -163,28 +166,28 @@ class Logger(LoggingInterface):
 
     @staticmethod
     def critical(entry):
-        Logger.process_log(entry, Logger.LOG_CRITICAL)
+        Logger._process_log(entry, Logger.LOG_CRITICAL)
 
     @staticmethod
     def error(entry):
-        Logger.process_log(entry, Logger.LOG_ERROR)
+        Logger._process_log(entry, Logger.LOG_ERROR)
 
     @staticmethod
     def warning(entry):
-        Logger.process_log(entry, Logger.LOG_WARNING)
+        Logger._process_log(entry, Logger.LOG_WARNING)
 
     @staticmethod
     def notice(entry):
-        Logger.process_log(entry, Logger.LOG_NOTICE)
+        Logger._process_log(entry, Logger.LOG_NOTICE)
 
     @staticmethod
     def info(entry):
-        Logger.process_log(entry, Logger.LOG_INFO)
+        Logger._process_log(entry, Logger.LOG_INFO)
 
     @staticmethod
     def debug(entry):
-        Logger.process_log(entry, Logger.LOG_DEBUG)
+        Logger._process_log(entry, Logger.LOG_DEBUG)
 
     @staticmethod
     def trace(entry):
-        Logger.process_log(entry, Logger.LOG_TRACE)
+        Logger._process_log(entry, Logger.LOG_TRACE)

@@ -2,7 +2,7 @@ import os
 import unittest
 import re
 import time
-from logger import Logger, LoggingInterface
+from nofus import Logger, LoggingInterface
 
 MEMLOGS = []
 

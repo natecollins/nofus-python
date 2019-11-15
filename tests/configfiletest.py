@@ -1,6 +1,6 @@
 import os
 import unittest
-from configfile import ConfigFile
+from nofus import ConfigFile
 TEST_PATH = os.path.dirname(os.path.realpath(__file__))
 
 class ConfigFileTestCase(unittest.TestCase):

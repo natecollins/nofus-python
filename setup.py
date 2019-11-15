@@ -7,7 +7,7 @@ with open(os.path.join(os.path.dirname(__file__), 'README.md'), "r") as fh:
     readme = fh.read()
 
 setuptools.setup(
-    name='nofus-natecollins',
+    name='nofus',
     packages=['nofus'],
     version=nofus.__version__,
     license='BSD 2-clause',

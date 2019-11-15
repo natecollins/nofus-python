@@ -88,7 +88,7 @@ If all you need is one class, you can just grab a file and throw it in your proj
 
 Or you can install the whole stack using `pip`:  
 ```
-TODO
+pip install nofus
 ```
 
 ## License

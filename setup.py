@@ -11,7 +11,7 @@ setuptools.setup(
     packages=['nofus'],
     version=nofus.__version__,
     license='BSD 2-clause',
-    description='NOFUS - Simple Single Purpose Classes',
+    description='NOFUS - Nate\'s One-File Utilities Stash',
     long_description=readme,
     long_description_content_type="text/markdown",
     author='Nate Collins',

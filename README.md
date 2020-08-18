@@ -29,6 +29,8 @@ uri = "ldap://ldap3.example.com:389"
 
 Example Use:  
 ```
+from nofus import ConfigFile
+
 conf = ConfigFile("/path/to/my.conf")
 if not conf.load():
     print(conf.errors())
@@ -48,7 +50,7 @@ else:
 ### Logger: Simplified Alternate Logging Interface
 Example Use:  
 ```
-from logger import Logger
+from nofus import Logger
 
 # Fast setup, default to logging LOG_DEBUG and higher
 Logger.initialize('/tmp/myfile.log')
@@ -70,7 +72,7 @@ if Logger.is_enabled(Logger.LOG_DEBUG):
     Logger.debug("Debug!")
 
 # Or Define a custom logger
-from logger import LoggingInterface
+from nofus import LoggingInterface
 class CustomLogger(LoggingInterface):
     def __init__(self, log_file=None, log_level=None):
         if log_level is None:

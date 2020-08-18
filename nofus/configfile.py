@@ -70,9 +70,9 @@ auth.user = apache                  # e.g. full scope is: sql.maria.auth.user
 auth.pw = secure
 auth.db = website
 
- **************************************
- * Invalid examples
- **************************************
+**************************************
+* Invalid examples
+**************************************
 
 my var = my val         # spaces are not allowed in variable identifiers
 []#.$ = something       # only a-zA-Z0-9_- are allow for variable identifier (. is allowed for scope)
@@ -81,9 +81,9 @@ a..b = c                # scopes cannot be blank
 .d. = e                 # start and end scope can't be blank
 
 
- **************************************
- * Use examples
- **************************************
+**************************************
+* Use examples
+**************************************
 
 cf = ConfigFile("test.conf");
 if (cf.load()) {
@@ -137,7 +137,7 @@ class ConfigFile:
         self.current_scope = ""
 
         # Errors
-        self.errors = []
+        self._errors = []
 
         # Keys with preloaded values
         self.preloaded = {}
@@ -231,7 +231,7 @@ class ConfigFile:
         Reset the config file object, basically "unloading" everything so it can be reloaded.
         """
         self.loaded = False
-        self.errors = []
+        self._errors = []
         self.values = {}
 
     def load(self):
@@ -245,11 +245,11 @@ class ConfigFile:
 
         # If file is null, then this is a scope query result, do nothing
         if self.file_path is None:
-            self.errors.append("Cannot load file; no file was given. (Note: you cannot load() a query result.)")
+            self._errors.append("Cannot load file; no file was given. (Note: you cannot load() a query result.)")
             return False
 
         if not os.path.isfile(self.file_path) or not os.access(self.file_path, os.R_OK):
-            self.errors.append("Cannot load file; file does not exist or is not readable.")
+            self._errors.append("Cannot load file; file does not exist or is not readable.")
             return False
 
         lines = []
@@ -257,7 +257,7 @@ class ConfigFile:
             with open(self.file_path) as cfile:
                 lines = cfile.readlines()
         except OSError:
-            self.errors.append("Cannot load file; unknown file error.")
+            self._errors.append("Cannot load file; unknown file error.")
         lines = [line.rstrip('\r\n') for line in lines]
 
         # Process lines
@@ -265,7 +265,7 @@ class ConfigFile:
             self._process_line(line_num, line)
 
         # If parsing lines generated errors, return false
-        if len(self.errors) > 0:
+        if len(self._errors) > 0:
             return False
 
         # Make it past all error conditions, so return true
@@ -562,14 +562,14 @@ class ConfigFile:
         :param message string The error message associated with the line
         """
         line += 1   # due to base 0 line indexing
-        self.errors.append("ConfigFile parse error on line {0}: {1}".format(line, message))
+        self._errors.append("ConfigFile parse error on line {0}: {1}".format(line, message))
 
     def errors(self):
         """
         Get a list of errors when attempting to load() the file
         :return array And array of errors; can be empty if no errors were encountered or the file has not been loaded yet
         """
-        return self.errors
+        return self._errors
 
     def get(self, query, default=None):
         """

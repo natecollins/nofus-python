@@ -12,9 +12,17 @@ class ConfigFileTestCase(unittest.TestCase):
         self.assertIsInstance(cf, ConfigFile)
         loaded = cf.load()
         if not loaded:
-            for error in cf.errors:
+            for error in cf.errors():
                 print(" >> {0}".format(error))
         self.assertTrue(loaded)
+
+    def test_invalid_file(self):
+        cf = ConfigFile("/not/a/valid/path/config.conf")
+        self.assertIsInstance(cf, ConfigFile)
+        loaded = cf.load()
+        self.assertFalse(loaded)
+        self.assertIsInstance(cf.errors(), list)
+        self.assertGreater(len(cf.errors()), 0)
 
     def test_can_parse_all_values(self):
         cf = ConfigFile(self.test1_file)

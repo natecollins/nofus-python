@@ -1,7 +1,7 @@
 """
 NOFUS: Nate's One-File Utilities Stash
 """
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 __author__ = 'Nate Collins'
 
 from .configfile import ConfigFile

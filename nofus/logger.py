@@ -66,7 +66,11 @@ class LoggingInterface:
     """
     Interface required for creating custom logger
     """
+    # pylint: disable=too-few-public-methods
     def make_log(self, entry, log_level):
+        """
+        Must implement method
+        """
         raise NotImplementedError("Custom Logger class must override make_log()")
 
 
@@ -106,20 +110,28 @@ class Logger(LoggingInterface):
         :param logger An instance of a class that implements LoggingInterface
         """
         if not issubclass(logger.__class__, LoggingInterface):
-            raise TypeError("Logger failure. Can only register classes which implement LoggingInterface.")
+            raise TypeError("Logger failure. "
+                "Can only register classes which implement LoggingInterface.")
         Logger.logger = logger
 
     @staticmethod
     def disable():
+        """
+        Unset (disable) the logger
+        """
         Logger.logger = False
 
     @staticmethod
     def initialize(log_file, log_level=None):
+        """
+        Initialize file logger
+        """
         if log_level is None:
             log_level = Logger.LOG_HIGH
 
         file_writable = os.path.isfile(log_file) and os.access(log_file, os.W_OK)
-        can_create_file = not os.path.isfile(log_file) and os.access(os.path.dirname(log_file), os.W_OK)
+        can_create_file = not os.path.isfile(log_file) \
+                          and os.access(os.path.dirname(log_file), os.W_OK)
         if file_writable or can_create_file:
             Logger.logger = Logger(log_file, log_level)
         else:
@@ -144,50 +156,75 @@ class Logger(LoggingInterface):
             elif log_level == Logger.LOG_TRACE:
                 level = "TRACE"
 
-            entry = "[{0}] [{1}] {2}".format(timestamp, level, entry) + os.linesep
-            Logger.nofus_lock.acquire()
-            with open(self.log_file, 'a+') as appendlog:
+            entry = f"[{timestamp}] [{level}] {entry}" + os.linesep
+            with Logger.nofus_lock, open(self.log_file, 'a+', encoding="utf8") as appendlog:
                 appendlog.write(entry)
-            Logger.nofus_lock.release()
 
     @staticmethod
     def _process_log(entry, log_level):
+        """
+        Handle the log entry, unless logging is disabled
+        """
         if Logger.logger is None:
             raise RuntimeError("Logger failure. Logger not initialized.")
-        elif Logger.logger is not False:
+        if Logger.logger is not False:
             Logger.logger.make_log(entry, log_level)
 
     @staticmethod
     def is_enabled(log_level):
+        """
+        Check if logging is enabled
+        """
         try:
             return (Logger.logger.log_level & log_level) != Logger.LOG_NONE
-        except Exception as e:
+        except AttributeError:
             return None
 
     @staticmethod
     def critical(entry):
+        """
+        Static logger for critical messages
+        """
         Logger._process_log(entry, Logger.LOG_CRITICAL)
 
     @staticmethod
     def error(entry):
+        """
+        Static logger for error messages
+        """
         Logger._process_log(entry, Logger.LOG_ERROR)
 
     @staticmethod
     def warning(entry):
+        """
+        Static logger for warning messages
+        """
         Logger._process_log(entry, Logger.LOG_WARNING)
 
     @staticmethod
     def notice(entry):
+        """
+        Static logger for notice messages
+        """
         Logger._process_log(entry, Logger.LOG_NOTICE)
 
     @staticmethod
     def info(entry):
+        """
+        Static logger for info messages
+        """
         Logger._process_log(entry, Logger.LOG_INFO)
 
     @staticmethod
     def debug(entry):
+        """
+        Static logger for debug messages
+        """
         Logger._process_log(entry, Logger.LOG_DEBUG)
 
     @staticmethod
     def trace(entry):
+        """
+        Static logger for trace messages
+        """
         Logger._process_log(entry, Logger.LOG_TRACE)

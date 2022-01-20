@@ -60,16 +60,22 @@ Logger.warning("Warning!")
 Logger.error("Error!")
 Logger.critical("Critical!")
 
+# Easily put an exception stack trace into the log
+try:
+    1/0
+except ZeroDivisionError as exc:
+    Logger.info("Caught something.", exc_info=exc)
+
 # Disable logging
 Logger.disable()
 
-# Set log level
+# Set custom log level
 Logger.initialize('/tmp/myfile.log', Logger.LOG_TRACE)
 Logger.trace("Trace!")
 
 # Check log level
 if Logger.is_enabled(Logger.LOG_DEBUG):
-    Logger.debug("Debug!")
+    Logger.debug("Yep, we're debugging.")
 
 # Or Define a custom logger
 from nofus import LoggingInterface

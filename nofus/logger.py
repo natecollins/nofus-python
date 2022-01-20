@@ -45,7 +45,7 @@ Logger.disable()
 
 # Register custom logger instance which implements LoggingInterface
 class CustomLogger(LoggingInterface):
-    ..
+    ...
 
 Logger.register( CustomLogger() )
 
@@ -57,10 +57,17 @@ Logger.notice("Notice!")
 Logger.warning("Warning!")
 Logger.error("Error!")
 Logger.critical("Critical!")
+
+# Log entry which includes an exception stack trace
+try:
+    1/0
+except ZeroDivisionError as exc:
+    Logger.info("Caught something.", exc_info=exc)
 """
 import os
 import time
 import threading
+import traceback
 
 class LoggingInterface:
     """
@@ -90,7 +97,9 @@ class Logger(LoggingInterface):
     LOG_LOW       = 0x00000003  # CRITICAL & HIGH
     LOG_MED       = 0x0000000F  # LOW + WARNING & NOTICE
     LOG_HIGH      = 0x0000003F  # MED + INFO & DEBUG
-    LOG_ALL       = 0xFFFFFFFF
+    LOG_ALL       = 0x0000FFFF
+
+    LOG_RAW       = 0x80000000  # Raw log message; e.g. remove log prefixes
 
     # Instance of class implementing LoggingInterface
     logger = None
@@ -138,7 +147,10 @@ class Logger(LoggingInterface):
             raise IOError("Logger failure. Can not initialize; log file not writable.")
 
     def make_log(self, entry, log_level):
-        if (self.log_level & log_level) != Logger.LOG_NONE:
+        """
+        Default log to file implementation
+        """
+        if (self.log_level & log_level & Logger.LOG_ALL) != Logger.LOG_NONE:
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
             level = "CUSTOM"
             if log_level == Logger.LOG_CRITICAL:
@@ -156,12 +168,14 @@ class Logger(LoggingInterface):
             elif log_level == Logger.LOG_TRACE:
                 level = "TRACE"
 
-            entry = f"[{timestamp}] [{level}] {entry}" + os.linesep
+            rawline = log_level & Logger.LOG_RAW
+            entry = ("" if rawline else f"[{timestamp}] [{level}] ") \
+                    + f"{entry}" + os.linesep
             with Logger.nofus_lock, open(self.log_file, 'a+', encoding="utf8") as appendlog:
                 appendlog.write(entry)
 
     @staticmethod
-    def _process_log(entry, log_level):
+    def _process_log(entry, log_level, exc_info=None):
         """
         Handle the log entry, unless logging is disabled
         """
@@ -169,6 +183,13 @@ class Logger(LoggingInterface):
             raise RuntimeError("Logger failure. Logger not initialized.")
         if Logger.logger is not False:
             Logger.logger.make_log(entry, log_level)
+            if exc_info:
+                for tbline in traceback.format_exception(
+                        type(exc_info),
+                        exc_info,
+                        exc_info.__traceback__
+                    ):
+                    Logger.logger.make_log(tbline, log_level | Logger.LOG_RAW)
 
     @staticmethod
     def is_enabled(log_level):
@@ -181,50 +202,50 @@ class Logger(LoggingInterface):
             return None
 
     @staticmethod
-    def critical(entry):
+    def critical(entry, /, *, exc_info=None):
         """
         Static logger for critical messages
         """
-        Logger._process_log(entry, Logger.LOG_CRITICAL)
+        Logger._process_log(entry, Logger.LOG_CRITICAL, exc_info=exc_info)
 
     @staticmethod
-    def error(entry):
+    def error(entry, /, *, exc_info=None):
         """
         Static logger for error messages
         """
-        Logger._process_log(entry, Logger.LOG_ERROR)
+        Logger._process_log(entry, Logger.LOG_ERROR, exc_info=exc_info)
 
     @staticmethod
-    def warning(entry):
+    def warning(entry, /, *, exc_info=None):
         """
         Static logger for warning messages
         """
-        Logger._process_log(entry, Logger.LOG_WARNING)
+        Logger._process_log(entry, Logger.LOG_WARNING, exc_info=exc_info)
 
     @staticmethod
-    def notice(entry):
+    def notice(entry, /, *, exc_info=None):
         """
         Static logger for notice messages
         """
-        Logger._process_log(entry, Logger.LOG_NOTICE)
+        Logger._process_log(entry, Logger.LOG_NOTICE, exc_info=exc_info)
 
     @staticmethod
-    def info(entry):
+    def info(entry, /, *, exc_info=None):
         """
         Static logger for info messages
         """
-        Logger._process_log(entry, Logger.LOG_INFO)
+        Logger._process_log(entry, Logger.LOG_INFO, exc_info=exc_info)
 
     @staticmethod
-    def debug(entry):
+    def debug(entry, /, *, exc_info=None):
         """
         Static logger for debug messages
         """
-        Logger._process_log(entry, Logger.LOG_DEBUG)
+        Logger._process_log(entry, Logger.LOG_DEBUG, exc_info=exc_info)
 
     @staticmethod
-    def trace(entry):
+    def trace(entry, /, *, exc_info=None):
         """
         Static logger for trace messages
         """
-        Logger._process_log(entry, Logger.LOG_TRACE)
+        Logger._process_log(entry, Logger.LOG_TRACE, exc_info=exc_info)

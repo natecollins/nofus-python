@@ -55,6 +55,10 @@ class LoggerTestCase(unittest.TestCase):
         Logger.warning("Warning!")
         Logger.error("Error!")
         Logger.critical("Critical!")
+        try:
+            raise ValueError("Bad Val")
+        except ValueError as exc:
+            Logger.info("Uh oh", exc_info=exc)
 
         self.assertTrue(Logger.is_enabled(Logger.LOG_WARNING))
         self.assertFalse(Logger.is_enabled(Logger.LOG_TRACE))
@@ -68,15 +72,22 @@ class LoggerTestCase(unittest.TestCase):
                     "[TS] [NOTICE] Notice!" + os.linesep + \
                     "[TS] [WARNING] Warning!" + os.linesep + \
                     "[TS] [ERROR] Error!" + os.linesep + \
-                    "[TS] [CRITICAL] Critical!" + os.linesep
+                    "[TS] [CRITICAL] Critical!" + os.linesep + \
+                    "[TS] [INFO] Uh oh" + os.linesep + \
+                    "Traceback (most recent call last):" + os.linesep
 
         log_content = ""
         with open(self.log_file, 'r') as logread:
             log_content = logread.read(1024)
-        log_content = re.sub('^\[[^[]+\]',"[TS]", log_content)
+        log_content = re.sub('^\[[^[]+\]', "[TS]", log_content)
         log_content = re.sub(os.linesep + '\[[^[]+\]', os.linesep + "[TS]", log_content)
         self.assertIsNotNone(log_content)
-        self.assertEqual(valid_log, log_content)
+        self.assertTrue(log_content.startswith(valid_log))
+        self.assertTrue(log_content.endswith(
+            os.linesep + \
+            "ValueError: Bad Val" + os.linesep + \
+            os.linesep
+        ))
 
     def test_custom_logger(self):
         Logger.register(CustomLogger())

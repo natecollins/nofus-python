@@ -182,14 +182,16 @@ class Logger(LoggingInterface):
         if Logger.logger is None:
             raise RuntimeError("Logger failure. Logger not initialized.")
         if Logger.logger is not False:
-            Logger.logger.make_log(entry, log_level)
             if exc_info:
+                tb_block = os.linesep;
                 for tbline in traceback.format_exception(
                         type(exc_info),
                         exc_info,
                         exc_info.__traceback__
                     ):
-                    Logger.logger.make_log(tbline, log_level | Logger.LOG_RAW)
+                    tb_block += tbline
+                entry += tb_block
+            Logger.logger.make_log(entry, log_level)
 
     @staticmethod
     def is_enabled(log_level):

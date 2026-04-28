@@ -1,6 +1,7 @@
 __pycache__
 *.swp
 ~*
+ignore.*
 build/
 dist
 *.egg-info/

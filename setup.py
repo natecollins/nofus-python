@@ -25,4 +25,7 @@ setuptools.setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
     ],
+    install_requires=[
+        "mariadb >= 1.1.14",
+    ]
 )

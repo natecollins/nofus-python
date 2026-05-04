@@ -22,10 +22,9 @@ class DBException(Exception):
     '''
     Nofus for database exception
     '''
-    def __init__(self, message: str, code: int = 0, previous: Optional[Exception] = None):
+    def __init__(self, message: str, code: int = 0):
         super().__init__(message)
         self.code = code
-        self.previous = previous
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}: {self.args[0]}"
@@ -767,7 +766,7 @@ class DBConnect:
                 self.get_error_info(dump, exc=exc)
                 raise DBException(message) from exc
             else:
-                raise DBException("A database error has occurred.", code=0, previous=exc)
+                raise DBException("A database error has occurred.", code=0) from exc
 
         return False
 
